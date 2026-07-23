@@ -1,0 +1,171 @@
+:root {
+    color-scheme: dark;
+    font-family:
+        Inter, "Segoe UI", Arial, sans-serif;
+    background: #0b1120;
+    color: #e5e7eb;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    min-height: 100%;
+    margin: 0;
+}
+
+body {
+    background:
+        radial-gradient(circle at top right, #172554, transparent 34%),
+        #0b1120;
+}
+
+.page {
+    display: grid;
+    place-items: start center;
+    min-height: 100vh;
+    padding: 42px 28px;
+}
+
+.card {
+    width: min(760px, 100%);
+    padding: 30px;
+    border: 1px solid #263247;
+    border-radius: 18px;
+    background: rgba(17, 24, 39, 0.94);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.heading {
+    margin-bottom: 28px;
+}
+
+.heading h2 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.heading p {
+    max-width: 640px;
+    margin: 8px 0 0;
+    color: #94a3b8;
+    line-height: 1.55;
+}
+
+.field {
+    margin-top: 20px;
+}
+
+.field label {
+    display: block;
+    margin-bottom: 8px;
+    color: #cbd5e1;
+    font-size: 14px;
+}
+
+.path-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+}
+
+input,
+button {
+    min-height: 44px;
+    border-radius: 10px;
+    font: inherit;
+}
+
+input {
+    width: 100%;
+    padding: 0 13px;
+    border: 1px solid #334155;
+    outline: none;
+    background: #0f172a;
+    color: #e5e7eb;
+}
+
+input:focus {
+    border-color: #3b82f6;
+}
+
+button {
+    padding: 0 16px;
+    border: 1px solid #3b4b63;
+    background: #1e293b;
+    color: #f8fafc;
+    cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+    background: #29364a;
+}
+
+button:disabled {
+    cursor: wait;
+    opacity: 0.55;
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 26px;
+}
+
+button.primary {
+    min-width: 160px;
+    border-color: #2563eb;
+    background: #2563eb;
+    font-weight: 600;
+}
+
+button.primary:hover:not(:disabled) {
+    background: #1d4ed8;
+}
+
+.status {
+    margin-top: 22px;
+    padding: 13px 15px;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    background: #0f172a;
+    color: #cbd5e1;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.status.working {
+    border-color: #854d0e;
+    color: #fde68a;
+}
+
+.status.success {
+    border-color: #166534;
+    color: #86efac;
+}
+
+.status.error {
+    border-color: #991b1b;
+    color: #fca5a5;
+}
+
+@media (max-width: 650px) {
+    .page {
+        padding: 20px 14px;
+    }
+
+    .card {
+        padding: 20px;
+    }
+
+    .path-row {
+        grid-template-columns: 1fr;
+    }
+
+    .actions,
+    button.primary {
+        width: 100%;
+    }
+}
