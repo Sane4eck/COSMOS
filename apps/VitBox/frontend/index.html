@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+    <title>VitBox:CSV → XLSX</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <main class="page">
+        <section class="card">
+            <div class="heading">
+                <h2>Перетворення CSV у XLSX</h2>
+                <p>
+                    Роздільник визначається автоматично.
+                    Значення Time переводяться у секунди від нуля.
+                </p>
+            </div>
+
+            <div class="field">
+                <label for="input-path">Вхідний CSV-файл</label>
+                <div class="path-row">
+                    <input
+                        id="input-path"
+                        type="text"
+                        placeholder="Виберіть CSV-файл"
+                        readonly
+                    >
+                    <button id="choose-input" type="button">
+                        Вибрати
+                    </button>
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="output-path">Вихідний XLSX-файл</label>
+                <div class="path-row">
+                    <input
+                        id="output-path"
+                        type="text"
+                        placeholder="Вкажіть місце збереження"
+                        readonly
+                    >
+                    <button id="choose-output" type="button">
+                        Зберегти як
+                    </button>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button id="convert" class="primary" type="button">
+                    Перетворити
+                </button>
+            </div>
+
+            <div id="status" class="status" aria-live="polite">
+                Очікування файлу
+            </div>
+        </section>
+    </main>
+
+    <script src="./app.js"></script>
+</body>
+</html>
