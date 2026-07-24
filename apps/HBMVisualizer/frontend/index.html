@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HBM Visualizer CSV</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <main class="page">
+        <section class="toolbar card">
+            <div class="heading">
+                <div>
+                    <h2>HBM Visualizer CSV</h2>
+                    <p>Обробка та візуалізація CSV-файлів HBM.</p>
+                </div>
+                <label class="filter-control">
+                    <input id="use-filter" type="checkbox" checked>
+                    Застосувати фільтри
+                </label>
+            </div>
+
+            <div class="file-row">
+                <button id="load" class="primary" type="button">Завантажити CSV</button>
+                <div id="file-path" class="file-path">Файл не вибрано</div>
+                <button id="save" type="button" disabled>Зберегти Excel</button>
+            </div>
+
+            <div id="status" class="status">Status: empty</div>
+            <div id="details" class="details" hidden></div>
+        </section>
+
+        <section class="preview card">
+            <div id="placeholder" class="placeholder">
+                Після завантаження тут з’явиться графік результатів випробування.
+            </div>
+            <img id="plot-image" alt="Fire test results" hidden>
+        </section>
+    </main>
+
+    <script src="./app.js"></script>
+</body>
+</html>
