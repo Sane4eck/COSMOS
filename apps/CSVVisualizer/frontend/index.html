@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Visualizer</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <main class="page">
+        <section class="panel controls">
+            <div class="toolbar">
+                <button id="choose-file" type="button">Завантажити CSV</button>
+                <span id="file-name">Файл не вибрано</span>
+            </div>
+
+            <div class="grid two">
+                <label>
+                    <span>Стовпець часу (X)</span>
+                    <select id="time-column"></select>
+                </label>
+                <div class="range-row">
+                    <label>
+                        <span>X min</span>
+                        <input id="x-min" type="text">
+                    </label>
+                    <label>
+                        <span>X max</span>
+                        <input id="x-max" type="text">
+                    </label>
+                </div>
+            </div>
+
+            <div class="section-title">Параметри графіка</div>
+            <div id="parameters" class="parameters empty">Завантажте CSV-файл</div>
+
+            <div class="actions">
+                <button id="plot" class="primary" type="button">Побудувати графік</button>
+                <button id="save" type="button">Зберегти Excel</button>
+            </div>
+
+            <div id="status" class="status">Очікування файлу</div>
+        </section>
+
+        <section class="panel preview">
+            <div id="preview-placeholder" class="placeholder">Графік з’явиться тут</div>
+            <img id="plot-image" alt="Графік CSV" hidden>
+        </section>
+    </main>
+    <script src="./app.js"></script>
+</body>
+</html>
