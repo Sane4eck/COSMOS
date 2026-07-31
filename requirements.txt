@@ -1,0 +1,10 @@
+fastapi
+matplotlib
+nptdms
+numpy
+openpyxl
+pandas
+pywebview
+scipy
+uvicorn
+xlrd
