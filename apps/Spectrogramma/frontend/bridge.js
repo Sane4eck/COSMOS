@@ -21,5 +21,7 @@ function setStatus(message, kind = "") {
 
 function setBusy(value) {
     $("choose-file").disabled = value;
-    $("analyze").disabled = value;
+    $("analyze").disabled = value || !selectedPath;
+    $("x-axis").disabled = value || !selectedPath;
+    $("y-axis").disabled = value || !selectedPath;
 }

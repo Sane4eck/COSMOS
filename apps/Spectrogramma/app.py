@@ -9,46 +9,86 @@ from core.models import AppDefinition
 from core.paths import resource_path
 
 
-def choose_excel(_):
+def _window():
     window = webview.active_window()
     if window is None:
         raise RuntimeError("Вікно застосунку ще не готове")
-    selected = window.create_file_dialog(
+    return window
+
+
+def choose_source(_):
+    selected = _window().create_file_dialog(
         webview.FileDialog.OPEN,
         allow_multiple=False,
-        file_types=("Excel (*.xlsx;*.xls)",),
+        file_types=("Excel або TDMS (*.xlsx;*.xls;*.tdms)", "Усі файли (*.*)"),
     )
     return {"path": selected[0] if selected else ""}
 
 
-def run_analysis(payload):
+def inspect_source(payload):
     path = str(payload.get("path", "")).strip()
-    column = str(payload.get("column_name", "")).strip()
     if not path:
         raise ValueError("Файл не вибрано")
-    if not column:
-        raise ValueError("Введіть назву колонки")
+    result = DataLoader.inspect(path)
+    result["file_name"] = Path(path).name
+    return result
 
-    fs = int(payload["fs"])
-    nperseg = int(payload["nperseg"])
-    duration = int(payload["duration_sec"])
-    start = int(payload["start_sec"])
-    y_max = int(payload["y_max"])
 
-    data, time_track = DataLoader(path, column, fs).load_data()
+def axis_info(payload):
+    return DataLoader.axis_info(
+        str(payload.get("path", "")).strip(),
+        str(payload.get("x_axis", "")).strip(),
+        str(payload.get("y_axis", "")).strip(),
+        float(payload.get("fs", 0)),
+    )
+
+
+def run_analysis(payload):
+    path = str(payload.get("path", "")).strip()
+    x_axis = str(payload.get("x_axis", "")).strip()
+    y_axis = str(payload.get("y_axis", "")).strip()
+    if not path:
+        raise ValueError("Файл не вибрано")
+    if not x_axis or not y_axis:
+        raise ValueError("Оберіть осі X і Y")
+
+    loaded = DataLoader(path, x_axis, y_axis, float(payload["fs"])).load_data()
     processor = SpectrogramProcessor(
-        data, time_track, fs, nperseg, duration, start, y_max
+        loaded.data,
+        loaded.time_track,
+        loaded.fs,
+        int(payload["nperseg"]),
+        float(payload["duration_sec"]),
+        float(payload["start_sec"]),
+        float(payload["y_max"]),
     )
     sxx_db, f_spec, t_spec, clipped = processor.generate_spectrogram()
-    image = SpectrogramViewer(sxx_db, f_spec, t_spec, y_max).render()
+    viewer = SpectrogramViewer(
+        sxx_db,
+        f_spec,
+        t_spec,
+        float(payload["y_max"]),
+        loaded.y_label,
+    )
+    image = viewer.render()
+
+    external_opened = bool(payload.get("open_external", True))
+    if external_opened:
+        viewer.show_interactive()
 
     return {
         "image": image,
         "file_name": Path(path).name,
-        "points": int(len(data)),
+        "source_type": loaded.source_type,
+        "x_label": loaded.x_label,
+        "y_label": loaded.y_label,
+        "points": int(len(loaded.data)),
         "windows": int(len(t_spec)),
         "frequency_bins": int(len(f_spec)),
+        "actual_fs": float(loaded.fs),
         "clipped": clipped,
+        "warning": loaded.warning,
+        "external_opened": external_opened,
         "actual_start": float(t_spec[0]),
         "actual_end": float(t_spec[-1]),
     }
@@ -59,7 +99,9 @@ APP = AppDefinition(
     title="Spectrogramma",
     frontend_dir=resource_path("apps", "Spectrogramma", "frontend"),
     commands={
-        "Spectrogramma.choose_excel": choose_excel,
+        "Spectrogramma.choose_source": choose_source,
+        "Spectrogramma.inspect_source": inspect_source,
+        "Spectrogramma.axis_info": axis_info,
         "Spectrogramma.analyze": run_analysis,
     },
 )
