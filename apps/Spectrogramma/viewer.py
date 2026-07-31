@@ -2,37 +2,122 @@ from __future__ import annotations
 
 import base64
 import io
+from threading import Thread
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib.figure import Figure
 
 
 class SpectrogramViewer:
-    def __init__(self, sxx_db, f_spec, t_spec, y_max: int):
-        self.sxx_db = sxx_db
-        self.f_spec = f_spec
-        self.t_spec = t_spec
-        self.y_max = y_max
+    def __init__(self, sxx_db, f_spec, t_spec, y_max: float, signal_name: str):
+        self.sxx_db = np.asarray(sxx_db)
+        self.f_spec = np.asarray(f_spec)
+        self.t_spec = np.asarray(t_spec)
+        self.y_max = float(y_max)
+        self.signal_name = signal_name
+        self.rpm_axis = self.f_spec * 60 / 1000
 
-    def render(self) -> str:
-        figure = plt.figure(figsize=(16, 9))
-        plt.pcolormesh(
+    def _create_figure(self):
+        figure = Figure(figsize=(16, 9))
+        axis = figure.add_subplot(111)
+        mesh = axis.pcolormesh(
             self.t_spec,
-            self.f_spec * 60 / 1000,
+            self.rpm_axis,
             self.sxx_db,
             shading="gouraud",
         )
-        plt.colorbar(label="Потужність/Частота (дБ/Гц)")
-        plt.title("Спектрограма сигналу з датчика вібрацій")
-        plt.xlabel("Час, с")
-        plt.ylabel("RPM")
-        plt.ylim(0, self.y_max)
-        plt.grid(True, linestyle=":", linewidth=0.5)
-        plt.tight_layout()
+        figure.colorbar(mesh, ax=axis, label="Потужність/Частота (дБ/Гц)")
+        axis.set_title(f"Спектрограма: {self.signal_name}")
+        axis.set_xlabel("Час, с")
+        axis.set_ylabel("RPM")
+        axis.set_ylim(0, self.y_max)
+        axis.grid(True, linestyle=":", linewidth=0.5)
+        figure.tight_layout()
+        return figure, axis
 
+    def _nearest_point(self, x_value: float, y_value: float):
+        time_index = int(np.argmin(np.abs(self.t_spec - x_value)))
+        rpm_index = int(np.argmin(np.abs(self.rpm_axis - y_value)))
+        return (
+            float(self.t_spec[time_index]),
+            float(self.rpm_axis[rpm_index]),
+            float(self.sxx_db[rpm_index, time_index]),
+        )
+
+    def render(self) -> str:
+        figure, _ = self._create_figure()
+        FigureCanvasAgg(figure)
         buffer = io.BytesIO()
         figure.savefig(buffer, format="png", dpi=140)
-        plt.close(figure)
         encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
         return f"data:image/png;base64,{encoded}"
+
+    def show_interactive(self) -> None:
+        try:
+            import tkinter  # noqa: F401
+            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg  # noqa: F401
+        except ImportError as exc:
+            raise RuntimeError(
+                "Для окремого інтерактивного вікна потрібен Tkinter"
+            ) from exc
+
+        Thread(target=self._run_interactive, daemon=True).start()
+
+    def _run_interactive(self) -> None:
+        import tkinter as tk
+        from matplotlib.backends.backend_tkagg import (
+            FigureCanvasTkAgg,
+            NavigationToolbar2Tk,
+        )
+
+        root = tk.Tk()
+        root.title(f"Spectrogramma — {self.signal_name}")
+        root.geometry("1200x760")
+
+        figure, axis = self._create_figure()
+        canvas = FigureCanvasTkAgg(figure, master=root)
+        canvas.draw()
+        toolbar = NavigationToolbar2Tk(canvas, root, pack_toolbar=False)
+        toolbar.update()
+        toolbar.pack(side=tk.TOP, fill=tk.X)
+        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+        status = tk.StringVar(
+            value="Наведіть курсор або клацніть ЛКМ: час, RPM і дБ/Гц"
+        )
+        tk.Label(root, textvariable=status, anchor="w").pack(
+            side=tk.BOTTOM, fill=tk.X, padx=8, pady=5
+        )
+        annotation = [None]
+
+        def coordinate_text(x_value, y_value):
+            time_value, rpm_value, level = self._nearest_point(x_value, y_value)
+            return time_value, rpm_value, level, (
+                f"t={time_value:.6g} с; RPM={rpm_value:.6g}; "
+                f"рівень={level:.3f} дБ/Гц"
+            )
+
+        axis.format_coord = lambda x, y: coordinate_text(x, y)[3]
+
+        def on_click(event):
+            if event.inaxes is not axis or event.xdata is None or event.ydata is None:
+                return
+            time_value, rpm_value, level, text = coordinate_text(
+                event.xdata, event.ydata
+            )
+            status.set(text)
+            if annotation[0] is not None:
+                annotation[0].remove()
+            annotation[0] = axis.annotate(
+                f"t={time_value:.4g}\nRPM={rpm_value:.4g}\n{level:.2f} дБ/Гц",
+                xy=(time_value, rpm_value),
+                xytext=(12, 12),
+                textcoords="offset points",
+                bbox={"boxstyle": "round", "fc": "white", "alpha": 0.85},
+                arrowprops={"arrowstyle": "->"},
+            )
+            canvas.draw_idle()
+
+        canvas.mpl_connect("button_press_event", on_click)
+        root.mainloop()
