@@ -1,19 +1,50 @@
 from __future__ import annotations
 
-import numpy as np
-import pandas as pd
+from pathlib import Path
+
+from apps.Spectrogramma.excel_source import (
+    axis_info_excel,
+    inspect_excel,
+    load_excel,
+)
+from apps.Spectrogramma.tdms_source import (
+    axis_info_tdms,
+    inspect_tdms,
+    load_tdms,
+)
 
 
 class DataLoader:
-    def __init__(self, filepath: str, column_name: str, fs: int):
+    def __init__(self, filepath: str, x_axis: str, y_axis: str, fs: float):
         self.filepath = filepath
-        self.column_name = column_name
-        self.fs = fs
-        self.data = None
-        self.time_track = None
+        self.x_axis = x_axis
+        self.y_axis = y_axis
+        self.fs = float(fs)
+
+    @staticmethod
+    def source_type(filepath: str) -> str:
+        suffix = Path(filepath).suffix.lower()
+        if suffix in {".xlsx", ".xls"}:
+            return "excel"
+        if suffix == ".tdms":
+            return "tdms"
+        raise ValueError("Підтримуються лише файли .xlsx, .xls і .tdms")
+
+    @classmethod
+    def inspect(cls, filepath: str) -> dict:
+        if cls.source_type(filepath) == "excel":
+            return inspect_excel(filepath)
+        return inspect_tdms(filepath)
+
+    @classmethod
+    def axis_info(
+        cls, filepath: str, x_axis: str, y_axis: str, fs: float
+    ) -> dict:
+        if cls.source_type(filepath) == "excel":
+            return axis_info_excel(filepath, x_axis, y_axis, float(fs))
+        return axis_info_tdms(filepath, x_axis, y_axis, float(fs))
 
     def load_data(self):
-        dataframe = pd.read_excel(self.filepath)
-        self.data = dataframe[self.column_name].to_numpy()
-        self.time_track = np.arange(len(self.data)) / self.fs
-        return self.data, self.time_track
+        if self.source_type(self.filepath) == "excel":
+            return load_excel(self.filepath, self.x_axis, self.y_axis, self.fs)
+        return load_tdms(self.filepath, self.x_axis, self.y_axis, self.fs)
