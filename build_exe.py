@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 import PyInstaller.__main__
@@ -10,6 +11,36 @@ BASE_DIR = Path(__file__).resolve().parent
 ENTRY_POINT = BASE_DIR / "main.py"
 ICON_ICO = BASE_DIR / "file_icon_exe" / "icon.ico"
 APP_NAME = "COSMOS"
+
+
+def validate_environment() -> None:
+    """Перевірити відомі несумісності до запуску довгої збірки."""
+    version = sys.version_info
+    print(f"[PyInstaller] Python: {sys.version.split()[0]}")
+    print(f"[PyInstaller] PyInstaller: {PyInstaller.__version__}")
+
+    # CPython 3.12.0 має помилку компіляції comprehension-виразів, яка у
+    # frozen-збірках SciPy проявляється як NameError: name 'obj' is not defined.
+    if version[:3] == (3, 12, 0):
+        raise RuntimeError(
+            "Python 3.12.0 несумісний із цією збіркою SciPy/PyInstaller: "
+            "можлива помилка `NameError: name 'obj' is not defined`. "
+            "Створіть середовище на Python 3.11.x або Python 3.12.1+."
+        )
+
+    if not ENTRY_POINT.is_file():
+        raise FileNotFoundError(f"Точку входу не знайдено: {ENTRY_POINT}")
+
+    if not ICON_ICO.is_file():
+        raise FileNotFoundError(
+            "Іконку COSMOS не знайдено. Додайте ICO-файл точно за шляхом: "
+            f"{ICON_ICO}"
+        )
+
+    if ICON_ICO.stat().st_size == 0:
+        raise ValueError(f"Файл іконки порожній: {ICON_ICO}")
+
+    print(f"[PyInstaller] Іконка: {ICON_ICO}")
 
 
 def add_data(arguments: list[str], source: Path, destination: str) -> None:
@@ -36,8 +67,7 @@ def discover_frontends() -> list[tuple[Path, str]]:
 
 
 def build() -> None:
-    if not ENTRY_POINT.is_file():
-        raise FileNotFoundError(f"Точку входу не знайдено: {ENTRY_POINT}")
+    validate_environment()
 
     arguments = [
         str(ENTRY_POINT),
@@ -46,6 +76,7 @@ def build() -> None:
         "--clean",
         "--noconfirm",
         f"--name={APP_NAME}",
+        f"--icon={ICON_ICO}",
 
         # Uvicorn обирає цикли та протоколи динамічно.
         "--collect-submodules=uvicorn",
@@ -83,14 +114,9 @@ def build() -> None:
             ]
         )
 
-    if ICON_ICO.is_file():
-        arguments.append(f"--icon={ICON_ICO}")
-        add_data(arguments, ICON_ICO.parent, "file_icon_exe")
-    else:
-        print(
-            "[PyInstaller] Іконку не знайдено. "
-            "Для власної іконки додайте file_icon_exe/icon.ico."
-        )
+    # Іконка потрібна як ресурс і для самого EXE, і для можливого подальшого
+    # використання в інтерфейсі застосунку.
+    add_data(arguments, ICON_ICO.parent, "file_icon_exe")
 
     # resource_path() у COSMOS бере ці каталоги з sys._MEIPASS у onefile-збірці.
     for source, destination in discover_frontends():
