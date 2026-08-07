@@ -9,11 +9,23 @@ from core.models import AppDefinition
 from core.paths import resource_path
 
 
+_last_viewer: SpectrogramViewer | None = None
+
+
 def _window():
     window = webview.active_window()
     if window is None:
         raise RuntimeError("Вікно застосунку ще не готове")
     return window
+
+
+def _optional_float(value) -> float | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    return float(text)
 
 
 def choose_source(_):
@@ -43,7 +55,27 @@ def axis_info(payload):
     )
 
 
+def update_scale(payload):
+    global _last_viewer
+
+    if _last_viewer is None:
+        raise ValueError("Спочатку побудуйте спектрограму")
+
+    vmin = _optional_float(payload.get("vmin"))
+    vmax = _optional_float(payload.get("vmax"))
+    _last_viewer.set_color_limits(vmin, vmax)
+    image, actual_vmin, actual_vmax = _last_viewer.render()
+
+    return {
+        "image": image,
+        "vmin": actual_vmin,
+        "vmax": actual_vmax,
+    }
+
+
 def run_analysis(payload):
+    global _last_viewer
+
     path = str(payload.get("path", "")).strip()
     x_axis = str(payload.get("x_axis", "")).strip()
     y_axis = str(payload.get("y_axis", "")).strip()
@@ -69,8 +101,11 @@ def run_analysis(payload):
         t_spec,
         float(payload["y_max"]),
         loaded.y_label,
+        _optional_float(payload.get("vmin")),
+        _optional_float(payload.get("vmax")),
     )
-    image = viewer.render()
+    image, actual_vmin, actual_vmax = viewer.render()
+    _last_viewer = viewer
 
     external_opened = bool(payload.get("open_external", True))
     if external_opened:
@@ -91,6 +126,8 @@ def run_analysis(payload):
         "external_opened": external_opened,
         "actual_start": float(t_spec[0]),
         "actual_end": float(t_spec[-1]),
+        "vmin": actual_vmin,
+        "vmax": actual_vmax,
     }
 
 
@@ -102,6 +139,7 @@ APP = AppDefinition(
         "Spectrogramma.choose_source": choose_source,
         "Spectrogramma.inspect_source": inspect_source,
         "Spectrogramma.axis_info": axis_info,
+        "Spectrogramma.update_scale": update_scale,
         "Spectrogramma.analyze": run_analysis,
     },
 )
