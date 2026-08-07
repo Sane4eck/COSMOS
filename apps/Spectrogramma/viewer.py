@@ -38,8 +38,16 @@ class SpectrogramViewer:
 
         if not np.isfinite(vmin) or not np.isfinite(vmax):
             raise ValueError("vmin та vmax повинні бути скінченними числами")
+
         if vmin >= vmax:
-            raise ValueError("vmin повинен бути меншим за vmax")
+            delta = max(abs(vmin), abs(vmax), 1.0) * 1e-9
+            if self.vmin is None:
+                vmin = vmax - delta
+            elif self.vmax is None:
+                vmax = vmin + delta
+            else:
+                raise ValueError("vmin повинен бути меншим за vmax")
+
         return vmin, vmax
 
     def set_color_limits(
