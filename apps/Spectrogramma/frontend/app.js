@@ -1,6 +1,7 @@
 let selectedPath = "";
 let analysisReady = false;
 let visualUpdateTimer = null;
+let analysisDetailsBase = "";
 
 function fillSelect(select, items, selectedId) {
     select.innerHTML = "";
@@ -60,11 +61,15 @@ function unitSuffix(unit) {
     return unit ? ` ${unit}` : "";
 }
 
-function updateDetails(result) {
+function setAnalysisDetailsBase(result) {
+    analysisDetailsBase = `X: ${result.x_label}; Y: ${result.y_label}; fs: ${result.actual_fs.toPrecision(8)} Hz; точок: ${result.points}; сегментів: ${result.windows}; частотних ліній: ${result.frequency_bins}; діапазон: ${result.actual_start.toFixed(6)}–${result.actual_end.toFixed(6)} с`;
+}
+
+function renderVisualDetails(result) {
     const info = $("details");
     info.hidden = false;
     const unit = unitSuffix(result.value_unit);
-    info.textContent = `X: ${result.x_label}; Y: ${result.y_label}; fs: ${result.actual_fs.toPrecision(8)} Hz; точок: ${result.points}; сегментів: ${result.windows}; частотних ліній: ${result.frequency_bins}; діапазон: ${result.actual_start.toFixed(6)}–${result.actual_end.toFixed(6)} с; SXX: ${compactNumber(result.raw_min)}…${compactNumber(result.raw_max)}; результат: ${compactNumber(result.result_min)}…${compactNumber(result.result_max)}${unit}; шкала: ${compactNumber(result.vmin)}…${compactNumber(result.vmax)}${unit}.`;
+    info.textContent = `${analysisDetailsBase}; SXX: ${compactNumber(result.raw_min)}…${compactNumber(result.raw_max)}; результат: ${compactNumber(result.result_min)}…${compactNumber(result.result_max)}${unit}; шкала: ${compactNumber(result.vmin)}…${compactNumber(result.vmax)}${unit}; формула: ${result.formula}.`;
 }
 
 async function updateVisualization() {
@@ -81,18 +86,12 @@ async function updateVisualization() {
         const result = await apiCall("Spectrogramma.update_visual", visualPayload());
         showImage(result.image);
         updateScalePlaceholders(result.vmin, result.vmax);
+        renderVisualDetails(result);
         const unit = unitSuffix(result.value_unit);
         setStatus(
             `Відображення оновлено: ${compactNumber(result.vmin)}…${compactNumber(result.vmax)}${unit}`,
             "success",
         );
-
-        const info = $("details");
-        if (!info.hidden) {
-            const formulaInfo = ` Формула: ${result.formula}. Результат: ${compactNumber(result.result_min)}…${compactNumber(result.result_max)}${unit}.`;
-            const baseText = info.textContent.replace(/ Формула:.*$/, "");
-            info.textContent = baseText + formulaInfo;
-        }
     } catch (error) {
         setStatus(error.message, "error");
     }
@@ -134,6 +133,7 @@ $("choose-file").onclick = async () => {
         if (!selected.path) return;
         selectedPath = selected.path;
         analysisReady = false;
+        analysisDetailsBase = "";
         $("vmin").placeholder = "Auto";
         $("vmax").placeholder = "Auto";
         $("file-path").textContent = selected.path;
@@ -187,12 +187,10 @@ $("analyze").onclick = async () => {
         showImage(result.image);
         updateScalePlaceholders(result.vmin, result.vmax);
         analysisReady = true;
-        updateDetails(result);
+        setAnalysisDetailsBase(result);
+        renderVisualDetails(result);
 
         const unit = unitSuffix(result.value_unit);
-        const info = $("details");
-        info.textContent += ` Формула: ${result.formula}.`;
-
         const notes = [];
         if (result.clipped) notes.push("Діапазон скорочено до доступних даних");
         if (result.warning) notes.push(result.warning);
