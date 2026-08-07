@@ -64,6 +64,15 @@ def _optional_float(value) -> float | None:
     return float(text)
 
 
+def _float_or_default(value, default: float) -> float:
+    if value is None:
+        return float(default)
+    text = str(value).strip()
+    if not text:
+        return float(default)
+    return float(text)
+
+
 def _formula_from_payload(payload) -> str:
     value = payload.get("formula")
     return str(value or "").strip() or DEFAULT_FORMULA
@@ -157,7 +166,7 @@ def _render_cached(payload):
 
     color_scale = str(payload.get("color_scale", "linear")).strip().lower() or "linear"
     cmap = str(payload.get("cmap", "turbo")).strip() or "turbo"
-    gamma = float(payload.get("gamma", 0.5))
+    gamma = _float_or_default(payload.get("gamma"), 0.5)
 
     viewer = SpectrogramViewer(
         values,
