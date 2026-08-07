@@ -18,12 +18,12 @@ document.getElementById("app").innerHTML = `
 </div>
 <datalist id="formula-presets">
 <option value="10 * log10(sxx + 1e-9)"></option>
-<option value="10 * log10(sxx + 1e-10)"></option>
+<option value="sxx_db = 10 * np.log10(sxx + 1e-10)"></option>
 <option value="sxx"></option>
 <option value="sqrt(sxx)"></option>
 <option value="20 * log10(sqrt(sxx) + 1e-9)"></option>
 </datalist>
-<p class="hint">Формула застосовується до лінійної матриці sxx після FFT. Доступні: log10, log/ln, sqrt, abs, clip, exp, minimum, maximum, power; можна писати також np.log10, np.sqrt тощо. Зміна формули або vmin/vmax перемальовує графік без повторного FFT.</p>
+<p class="hint">Формула застосовується до лінійної матриці sxx після FFT. Можна вводити просто вираз або запис виду sxx_db = ... . Доступні: log10, log/ln, sqrt, abs, clip, exp, minimum, maximum, power; можна писати також np.log10, np.sqrt тощо. Зміна формули або vmin/vmax перемальовує графік без повторного FFT.</p>
 <p class="hint">vmin/vmax задають межі кольорової шкали. Порожнє поле = Auto.</p>
 <label class="check"><input id="open-external" type="checkbox" checked> Також відкрити інтерактивний графік в окремому вікні</label>
 <p class="hint">В окремому вікні доступні zoom, pan і збереження. Клацніть по спектрограмі, щоб отримати час, RPM та значення вибраної формули.</p>
