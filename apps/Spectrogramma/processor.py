@@ -47,9 +47,20 @@ class SpectrogramProcessor:
 
         step = self.nperseg - self.noverlap
         num_windows = (len(data_subset) - self.nperseg) // step + 1
+        frequency_count = self.nperseg // 2 + 1
+
         window_func = windows.hann(self.nperseg)
-        spectrum_list = []
-        time_points_list = []
+        window_sum = float(np.sum(window_func))
+        if window_sum <= 0:
+            raise ValueError("Некоректна сума Hann window")
+
+        # Зберігаємо дві базові фізичні матриці:
+        # 1) поточний SXX/PSD-режим без зміни старої формули;
+        # 2) односторонню амплітуду FFT-bin з компенсацією coherent gain Hann.
+        # Обидві матриці float32, щоб зменшити обсяг кешу для великих файлів.
+        sxx = np.empty((frequency_count, num_windows), dtype=np.float32)
+        amplitude_peak = np.empty_like(sxx)
+        t_spec = np.empty(num_windows, dtype=float)
 
         for index in range(num_windows):
             idx_start = index * step
@@ -57,13 +68,24 @@ class SpectrogramProcessor:
             segment = data_subset[idx_start:idx_end]
             windowed = segment * window_func
             fft_result = np.fft.rfft(windowed)
-            pxx = np.abs(fft_result) ** 2 / (self.fs * self.nperseg)
-            spectrum_list.append(pxx)
-            time_points_list.append(time_subset[idx_start + self.nperseg // 2])
+            magnitude = np.abs(fft_result)
 
-        # Зберігаємо лінійний SXX окремо від формули відображення. Це дозволяє
-        # змінювати формулу в UI без повторного FFT. float32 зменшує обсяг кешу.
-        sxx = np.asarray(spectrum_list, dtype=np.float32).T
+            # Залишаємо існуючий SXX без зміни для PSD/Custom режимів.
+            pxx = magnitude**2 / (self.fs * self.nperseg)
+            sxx[:, index] = pxx.astype(np.float32, copy=False)
+
+            # Односторонній амплітудний спектр у тих самих одиницях, що й
+            # часовий сигнал. Якщо сигнал у g, результат — g peak.
+            amplitude = magnitude / window_sum
+            if self.nperseg % 2 == 0:
+                # DC та Nyquist не подвоюються.
+                amplitude[1:-1] *= 2.0
+            else:
+                # Для непарного N останній bin не є Nyquist, тому подвоюється.
+                amplitude[1:] *= 2.0
+            amplitude_peak[:, index] = amplitude.astype(np.float32, copy=False)
+
+            t_spec[index] = time_subset[idx_start + self.nperseg // 2]
+
         f_spec = np.fft.rfftfreq(self.nperseg, d=1 / self.fs)
-        t_spec = np.asarray(time_points_list)
-        return sxx, f_spec, t_spec, clipped
+        return sxx, amplitude_peak, f_spec, t_spec, clipped
