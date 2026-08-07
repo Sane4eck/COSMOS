@@ -11,8 +11,11 @@ document.getElementById("app").innerHTML = `
 <label>Початок, с<input id="start-sec" type="number" step="any" value="0"></label>
 <label>Тривалість, с<input id="duration-sec" type="number" min="0.000001" step="any" value="300"></label>
 <label>Y max, тис. RPM<input id="y-max" type="number" min="0.001" step="any" value="30"></label>
+<label>vmin, дБ/Гц<input id="vmin" type="number" step="any" placeholder="Auto"></label>
+<label>vmax, дБ/Гц<input id="vmax" type="number" step="any" placeholder="Auto"></label>
 <label class="wide">Кількість точок у сегменті<input id="nperseg" type="number" min="2" max="1000000" value="1000"></label>
 </div>
+<p class="hint">vmin/vmax задають межі кольорової шкали. Порожнє поле = Auto. Після розрахунку зміна меж перемальовує вбудований графік без повторного FFT.</p>
 <label class="check"><input id="open-external" type="checkbox" checked> Також відкрити інтерактивний графік в окремому вікні</label>
 <p class="hint">В окремому вікні доступні zoom, pan і збереження. Клацніть по спектрограмі, щоб отримати час, RPM та дБ/Гц.</p>
 <button id="analyze" class="primary" disabled>Запустити аналіз</button>
