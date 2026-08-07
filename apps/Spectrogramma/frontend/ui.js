@@ -11,9 +11,33 @@ document.getElementById("app").innerHTML = `
 <label>Початок, с<input id="start-sec" type="number" step="any" value="0"></label>
 <label>Тривалість, с<input id="duration-sec" type="number" min="0.000001" step="any" value="300"></label>
 <label>Y max, тис. RPM<input id="y-max" type="number" min="0.001" step="any" value="30"></label>
-<label>vmin<input id="vmin" type="number" step="any" placeholder="Auto"></label>
-<label>vmax<input id="vmax" type="number" step="any" placeholder="Auto"></label>
-<label class="wide">Формула відображення SXX<input id="formula" type="text" spellcheck="false" list="formula-presets" value="10 * log10(sxx + 1e-9)"></label>
+
+<label>Тип спектра<select id="spectrum-type">
+<option value="amplitude_peak" selected>Amplitude Peak [g]</option>
+<option value="amplitude_rms">Amplitude RMS [g RMS]</option>
+<option value="psd">PSD [g²/Hz]</option>
+<option value="asd">ASD [g/√Hz]</option>
+<option value="psd_db">PSD dB</option>
+<option value="custom">Custom Formula</option>
+</select></label>
+<label>Color scale<select id="color-scale">
+<option value="linear">Linear</option>
+<option value="power" selected>Power</option>
+<option value="log">Log</option>
+</select></label>
+<label id="gamma-field">Gamma<input id="gamma" type="number" min="0.000001" step="any" value="0.5"></label>
+<label>Colormap<select id="cmap">
+<option value="turbo" selected>turbo</option>
+<option value="viridis">viridis</option>
+<option value="plasma">plasma</option>
+<option value="inferno">inferno</option>
+<option value="magma">magma</option>
+<option value="nipy_spectral">nipy_spectral</option>
+<option value="jet">jet</option>
+</select></label>
+<label><span id="vmin-label">vmin [g]</span><input id="vmin" type="number" step="any" value="0" placeholder="Auto"></label>
+<label><span id="vmax-label">vmax [g]</span><input id="vmax" type="number" step="any" value="30" placeholder="Auto"></label>
+<label class="wide" id="custom-formula-field" hidden>Формула відображення SXX<input id="formula" type="text" spellcheck="false" list="formula-presets" value="10 * log10(sxx + 1e-9)"></label>
 <label class="wide">Кількість точок у сегменті<input id="nperseg" type="number" min="2" max="1000000" value="1000"></label>
 </div>
 <datalist id="formula-presets">
@@ -23,10 +47,11 @@ document.getElementById("app").innerHTML = `
 <option value="sqrt(sxx)"></option>
 <option value="20 * log10(sqrt(sxx) + 1e-9)"></option>
 </datalist>
-<p class="hint">Формула застосовується до лінійної матриці sxx після FFT. Можна вводити просто вираз або запис виду sxx_db = ... . Доступні: log10, log/ln, sqrt, abs, clip, exp, minimum, maximum, power; можна писати також np.log10, np.sqrt тощо. Зміна формули або vmin/vmax перемальовує графік без повторного FFT.</p>
-<p class="hint">vmin/vmax задають межі кольорової шкали. Порожнє поле = Auto.</p>
+<p class="hint">Amplitude Peak — одностороння амплітуда FFT-bin з компенсацією Hann window. Якщо вхідний сигнал у g, шкала також у g peak. Amplitude RMS = Peak / √2.</p>
+<p class="hint">vmin/vmax, Color scale, Gamma та Colormap змінюють тільки відображення кольорів і не змінюють фізичні значення спектра. Power/Log залишають colorbar у реальних одиницях вибраного режиму.</p>
+<p class="hint" id="custom-formula-hint" hidden>Custom Formula застосовується до існуючого SXX без повторного FFT. Доступні: log10, log/ln, sqrt, abs, clip, exp, minimum, maximum, power та відповідні np.* функції.</p>
 <label class="check"><input id="open-external" type="checkbox" checked> Також відкрити інтерактивний графік в окремому вікні</label>
-<p class="hint">В окремому вікні доступні zoom, pan і збереження. Клацніть по спектрограмі, щоб отримати час, RPM та значення вибраної формули.</p>
+<p class="hint">В окремому вікні доступні zoom, pan і збереження. Клацніть по спектрограмі, щоб отримати час, RPM та фізичне значення FFT-bin.</p>
 <button id="analyze" class="primary" disabled>Запустити аналіз</button>
 <div id="status" class="status">Очікування файлу</div>
 <div id="details" class="details" hidden></div>

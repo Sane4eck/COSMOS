@@ -6,7 +6,20 @@ from threading import Thread
 
 import numpy as np
 from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib.colors import LogNorm, Normalize, PowerNorm
 from matplotlib.figure import Figure
+
+
+_ALLOWED_COLOR_SCALES = {"linear", "power", "log"}
+_ALLOWED_CMAPS = {
+    "turbo",
+    "viridis",
+    "plasma",
+    "inferno",
+    "magma",
+    "nipy_spectral",
+    "jet",
+}
 
 
 class SpectrogramViewer:
@@ -19,8 +32,11 @@ class SpectrogramViewer:
         signal_name: str,
         vmin: float | None = None,
         vmax: float | None = None,
-        colorbar_label: str = "Рівень спектра (дБ/Гц)",
-        value_unit: str = "дБ/Гц",
+        colorbar_label: str = "Amplitude Peak (g)",
+        value_unit: str = "g",
+        color_scale: str = "linear",
+        gamma: float = 0.5,
+        cmap: str = "turbo",
     ):
         self.values = np.asarray(values)
         self.f_spec = np.asarray(f_spec)
@@ -32,27 +48,78 @@ class SpectrogramViewer:
         self.vmax = vmax
         self.colorbar_label = colorbar_label
         self.value_unit = value_unit
+        self.color_scale = str(color_scale).strip().lower()
+        self.gamma = float(gamma)
+        self.cmap = str(cmap).strip()
+
+        if self.color_scale not in _ALLOWED_COLOR_SCALES:
+            raise ValueError(f"Невідомий тип кольорової шкали: {self.color_scale}")
+        if self.cmap not in _ALLOWED_CMAPS:
+            raise ValueError(f"Невідома палітра: {self.cmap}")
+        if not np.isfinite(self.gamma) or self.gamma <= 0:
+            raise ValueError("Gamma повинна бути скінченним числом > 0")
+
         self._resolved_limits()
 
     def _resolved_limits(self) -> tuple[float, float]:
-        data_min = float(np.nanmin(self.values))
-        data_max = float(np.nanmax(self.values))
-        vmin = data_min if self.vmin is None else float(self.vmin)
-        vmax = data_max if self.vmax is None else float(self.vmax)
+        finite_values = self.values[np.isfinite(self.values)]
+        if not finite_values.size:
+            raise ValueError("Спектрограма не містить скінченних значень")
+
+        data_min = float(np.min(finite_values))
+        data_max = float(np.max(finite_values))
+
+        if self.color_scale == "log":
+            positive_values = finite_values[finite_values > 0]
+            if not positive_values.size:
+                raise ValueError("Log scale потребує хоча б одного додатного значення")
+
+            if self.vmin is None:
+                vmin = float(np.min(positive_values))
+            else:
+                vmin = float(self.vmin)
+                if vmin <= 0:
+                    raise ValueError("Для Log scale vmin повинен бути > 0")
+
+            vmax = data_max if self.vmax is None else float(self.vmax)
+            if vmax <= 0:
+                raise ValueError("Для Log scale vmax повинен бути > 0")
+        else:
+            vmin = data_min if self.vmin is None else float(self.vmin)
+            vmax = data_max if self.vmax is None else float(self.vmax)
 
         if not np.isfinite(vmin) or not np.isfinite(vmax):
             raise ValueError("vmin та vmax повинні бути скінченними числами")
 
         if vmin >= vmax:
-            delta = max(abs(vmin), abs(vmax), 1.0) * 1e-9
-            if self.vmin is None:
-                vmin = vmax - delta
-            elif self.vmax is None:
-                vmax = vmin + delta
-            else:
+            if self.vmin is not None and self.vmax is not None:
                 raise ValueError("vmin повинен бути меншим за vmax")
 
+            if self.color_scale == "log":
+                if self.vmin is None:
+                    vmin = vmax / 1.000001
+                else:
+                    vmax = vmin * 1.000001
+            else:
+                delta = max(abs(vmin), abs(vmax), 1.0) * 1e-9
+                if self.vmin is None:
+                    vmin = vmax - delta
+                else:
+                    vmax = vmin + delta
+
         return vmin, vmax
+
+    def _create_norm(self):
+        vmin, vmax = self._resolved_limits()
+
+        if self.color_scale == "power":
+            norm = PowerNorm(gamma=self.gamma, vmin=vmin, vmax=vmax)
+        elif self.color_scale == "log":
+            norm = LogNorm(vmin=vmin, vmax=vmax)
+        else:
+            norm = Normalize(vmin=vmin, vmax=vmax)
+
+        return norm, vmin, vmax
 
     def set_color_limits(
         self,
@@ -68,19 +135,19 @@ class SpectrogramViewer:
         return f"{level:.{digits}f}{suffix}"
 
     def _create_figure(self):
-        vmin, vmax = self._resolved_limits()
+        norm, vmin, vmax = self._create_norm()
         figure = Figure(figsize=(16, 9))
         axis = figure.add_subplot(111)
         mesh = axis.pcolormesh(
             self.t_spec,
             self.rpm_axis,
             self.values,
-            shading="gouraud",
-            vmin=vmin,
-            vmax=vmax,
+            shading="nearest",
+            norm=norm,
+            cmap=self.cmap,
         )
         figure.colorbar(mesh, ax=axis, label=self.colorbar_label)
-        axis.set_title(f"Спектрограма: {self.signal_name}")
+        axis.set_title(f"Спектрограма: {self.signal_name} — {self.colorbar_label}")
         axis.set_xlabel("Час, с")
         axis.set_ylabel("RPM")
         axis.set_ylim(0, self.y_max)
