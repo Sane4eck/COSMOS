@@ -41,6 +41,8 @@ _CONSTANTS = {
     "e": float(np.e),
 }
 
+_ALLOWED_RESULT_NAMES = {"sxx_db", "result", "values"}
+
 
 def _function_name(node: ast.AST) -> str:
     if isinstance(node, ast.Name):
@@ -106,6 +108,34 @@ def _evaluate(node: ast.AST, sxx: np.ndarray):
     raise ValueError(f"Конструкція {type(node).__name__} у формулі не дозволена")
 
 
+def _parse_formula(expression: str) -> ast.Expression:
+    try:
+        return ast.parse(expression, mode="eval")
+    except SyntaxError as expression_error:
+        try:
+            module = ast.parse(expression, mode="exec")
+        except SyntaxError as exc:
+            raise ValueError(f"Некоректний синтаксис формули: {exc.msg}") from exc
+
+        if len(module.body) != 1 or not isinstance(module.body[0], ast.Assign):
+            raise ValueError(
+                f"Некоректний синтаксис формули: {expression_error.msg}"
+            ) from expression_error
+
+        assignment = module.body[0]
+        if (
+            len(assignment.targets) != 1
+            or not isinstance(assignment.targets[0], ast.Name)
+            or assignment.targets[0].id not in _ALLOWED_RESULT_NAMES
+        ):
+            raise ValueError(
+                "Якщо використовується присвоєння, ліва частина повинна бути "
+                "sxx_db, result або values"
+            )
+
+        return ast.Expression(body=assignment.value)
+
+
 def apply_spectrum_formula(
     sxx,
     formula: str | None,
@@ -116,15 +146,12 @@ def apply_spectrum_formula(
     if len(expression) > 500:
         raise ValueError("Формула занадто довга")
 
-    try:
-        tree = ast.parse(expression, mode="eval")
-    except SyntaxError as exc:
-        raise ValueError(f"Некоректний синтаксис формули: {exc.msg}") from exc
+    tree = _parse_formula(expression)
 
     try:
         with np.errstate(all="ignore"):
             result = _evaluate(tree, source)
-    except (TypeError, ValueError, FloatingPointError) as exc:
+    except (TypeError, ValueError, FloatingPointError, ArithmeticError) as exc:
         if isinstance(exc, ValueError) and str(exc).startswith((
             "Дозволені",
             "У формулі",
@@ -159,6 +186,8 @@ def apply_spectrum_formula(
 
 def spectrum_value_metadata(formula: str) -> tuple[str, str]:
     normalized = formula.replace("np.", "").replace(" ", "").lower()
+    if "=" in normalized:
+        normalized = normalized.split("=", 1)[1]
 
     if normalized == "sxx":
         return "PSD (g²/Гц)", "g²/Гц"
