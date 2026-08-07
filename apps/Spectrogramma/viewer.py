@@ -12,15 +12,17 @@ from matplotlib.figure import Figure
 class SpectrogramViewer:
     def __init__(
         self,
-        sxx_db,
+        values,
         f_spec,
         t_spec,
         y_max: float,
         signal_name: str,
         vmin: float | None = None,
         vmax: float | None = None,
+        colorbar_label: str = "Рівень спектра (дБ/Гц)",
+        value_unit: str = "дБ/Гц",
     ):
-        self.sxx_db = np.asarray(sxx_db)
+        self.values = np.asarray(values)
         self.f_spec = np.asarray(f_spec)
         self.t_spec = np.asarray(t_spec)
         self.y_max = float(y_max)
@@ -28,11 +30,13 @@ class SpectrogramViewer:
         self.rpm_axis = self.f_spec * 60 / 1000
         self.vmin = vmin
         self.vmax = vmax
+        self.colorbar_label = colorbar_label
+        self.value_unit = value_unit
         self._resolved_limits()
 
     def _resolved_limits(self) -> tuple[float, float]:
-        data_min = float(np.nanmin(self.sxx_db))
-        data_max = float(np.nanmax(self.sxx_db))
+        data_min = float(np.nanmin(self.values))
+        data_max = float(np.nanmax(self.values))
         vmin = data_min if self.vmin is None else float(self.vmin)
         vmax = data_max if self.vmax is None else float(self.vmax)
 
@@ -59,6 +63,10 @@ class SpectrogramViewer:
         self.vmax = vmax
         return self._resolved_limits()
 
+    def _value_text(self, level: float, digits: int = 3) -> str:
+        suffix = f" {self.value_unit}" if self.value_unit else ""
+        return f"{level:.{digits}f}{suffix}"
+
     def _create_figure(self):
         vmin, vmax = self._resolved_limits()
         figure = Figure(figsize=(16, 9))
@@ -66,12 +74,12 @@ class SpectrogramViewer:
         mesh = axis.pcolormesh(
             self.t_spec,
             self.rpm_axis,
-            self.sxx_db,
+            self.values,
             shading="gouraud",
             vmin=vmin,
             vmax=vmax,
         )
-        figure.colorbar(mesh, ax=axis, label="Потужність/Частота (дБ/Гц)")
+        figure.colorbar(mesh, ax=axis, label=self.colorbar_label)
         axis.set_title(f"Спектрограма: {self.signal_name}")
         axis.set_xlabel("Час, с")
         axis.set_ylabel("RPM")
@@ -86,7 +94,7 @@ class SpectrogramViewer:
         return (
             float(self.t_spec[time_index]),
             float(self.rpm_axis[rpm_index]),
-            float(self.sxx_db[rpm_index, time_index]),
+            float(self.values[rpm_index, time_index]),
         )
 
     def render(self) -> tuple[str, float, float]:
@@ -128,7 +136,7 @@ class SpectrogramViewer:
         canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
         status = tk.StringVar(
-            value="Наведіть курсор або клацніть ЛКМ: час, RPM і дБ/Гц"
+            value="Наведіть курсор або клацніть ЛКМ: час, RPM і значення"
         )
         tk.Label(root, textvariable=status, anchor="w").pack(
             side=tk.BOTTOM, fill=tk.X, padx=8, pady=5
@@ -139,7 +147,7 @@ class SpectrogramViewer:
             time_value, rpm_value, level = self._nearest_point(x_value, y_value)
             return time_value, rpm_value, level, (
                 f"t={time_value:.6g} с; RPM={rpm_value:.6g}; "
-                f"рівень={level:.3f} дБ/Гц"
+                f"значення={self._value_text(level)}"
             )
 
         axis.format_coord = lambda x, y: coordinate_text(x, y)[3]
@@ -154,7 +162,7 @@ class SpectrogramViewer:
             if annotation[0] is not None:
                 annotation[0].remove()
             annotation[0] = axis.annotate(
-                f"t={time_value:.4g}\nRPM={rpm_value:.4g}\n{level:.2f} дБ/Гц",
+                f"t={time_value:.4g}\nRPM={rpm_value:.4g}\n{self._value_text(level, 2)}",
                 xy=(time_value, rpm_value),
                 xytext=(12, 12),
                 textcoords="offset points",

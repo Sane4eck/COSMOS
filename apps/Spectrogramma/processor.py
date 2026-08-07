@@ -61,8 +61,9 @@ class SpectrogramProcessor:
             spectrum_list.append(pxx)
             time_points_list.append(time_subset[idx_start + self.nperseg // 2])
 
-        sxx = np.array(spectrum_list).T
-        sxx_db = 10 * np.log10(sxx + 1e-9)
+        # Зберігаємо лінійний SXX окремо від формули відображення. Це дозволяє
+        # змінювати формулу в UI без повторного FFT. float32 зменшує обсяг кешу.
+        sxx = np.asarray(spectrum_list, dtype=np.float32).T
         f_spec = np.fft.rfftfreq(self.nperseg, d=1 / self.fs)
-        t_spec = np.array(time_points_list)
-        return sxx_db, f_spec, t_spec, clipped
+        t_spec = np.asarray(time_points_list)
+        return sxx, f_spec, t_spec, clipped

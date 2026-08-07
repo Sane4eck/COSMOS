@@ -1,6 +1,7 @@
 let selectedPath = "";
 let analysisReady = false;
-let scaleUpdateTimer = null;
+let visualUpdateTimer = null;
+let analysisDetailsBase = "";
 
 function fillSelect(select, items, selectedId) {
     select.innerHTML = "";
@@ -22,8 +23,9 @@ function updateScalePlaceholders(vmin, vmax) {
     $("vmax").placeholder = `Auto (${Number(vmax).toFixed(2)})`;
 }
 
-function scalePayload() {
+function visualPayload() {
     return {
+        formula: $("formula").value.trim(),
         vmin: $("vmin").value.trim(),
         vmax: $("vmax").value.trim(),
     };
@@ -45,16 +47,49 @@ function scaleInputsValid() {
     return true;
 }
 
-async function updateColorScale() {
+function compactNumber(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return String(value);
+    const magnitude = Math.abs(number);
+    if (magnitude !== 0 && (magnitude < 1e-3 || magnitude >= 1e4)) {
+        return number.toExponential(3);
+    }
+    return Number(number.toPrecision(6)).toString();
+}
+
+function unitSuffix(unit) {
+    return unit ? ` ${unit}` : "";
+}
+
+function setAnalysisDetailsBase(result) {
+    analysisDetailsBase = `X: ${result.x_label}; Y: ${result.y_label}; fs: ${result.actual_fs.toPrecision(8)} Hz; точок: ${result.points}; сегментів: ${result.windows}; частотних ліній: ${result.frequency_bins}; діапазон: ${result.actual_start.toFixed(6)}–${result.actual_end.toFixed(6)} с`;
+}
+
+function renderVisualDetails(result) {
+    const info = $("details");
+    info.hidden = false;
+    const unit = unitSuffix(result.value_unit);
+    info.textContent = `${analysisDetailsBase}; SXX: ${compactNumber(result.raw_min)}…${compactNumber(result.raw_max)}; результат: ${compactNumber(result.result_min)}…${compactNumber(result.result_max)}${unit}; шкала: ${compactNumber(result.vmin)}…${compactNumber(result.vmax)}${unit}; формула: ${result.formula}.`;
+}
+
+async function updateVisualization() {
     if (!analysisReady || !scaleInputsValid()) return;
 
+    const formula = $("formula").value.trim();
+    if (!formula) {
+        setStatus("Введіть формулу відображення", "error");
+        return;
+    }
+
     try {
-        setStatus("Оновлення кольорової шкали…", "working");
-        const result = await apiCall("Spectrogramma.update_scale", scalePayload());
+        setStatus("Оновлення формули та кольорової шкали…", "working");
+        const result = await apiCall("Spectrogramma.update_visual", visualPayload());
         showImage(result.image);
         updateScalePlaceholders(result.vmin, result.vmax);
+        renderVisualDetails(result);
+        const unit = unitSuffix(result.value_unit);
         setStatus(
-            `Кольорову шкалу оновлено: ${Number(result.vmin).toFixed(2)}…${Number(result.vmax).toFixed(2)} дБ/Гц`,
+            `Відображення оновлено: ${compactNumber(result.vmin)}…${compactNumber(result.vmax)}${unit}`,
             "success",
         );
     } catch (error) {
@@ -62,10 +97,10 @@ async function updateColorScale() {
     }
 }
 
-function scheduleColorScaleUpdate() {
+function scheduleVisualUpdate() {
     if (!analysisReady) return;
-    clearTimeout(scaleUpdateTimer);
-    scaleUpdateTimer = setTimeout(updateColorScale, 450);
+    clearTimeout(visualUpdateTimer);
+    visualUpdateTimer = setTimeout(updateVisualization, 650);
 }
 
 async function refreshAxisInfo() {
@@ -98,6 +133,7 @@ $("choose-file").onclick = async () => {
         if (!selected.path) return;
         selectedPath = selected.path;
         analysisReady = false;
+        analysisDetailsBase = "";
         $("vmin").placeholder = "Auto";
         $("vmax").placeholder = "Auto";
         $("file-path").textContent = selected.path;
@@ -119,11 +155,16 @@ $("choose-file").onclick = async () => {
 
 $("x-axis").onchange = refreshAxisInfo;
 $("y-axis").onchange = refreshAxisInfo;
-$("vmin").addEventListener("input", scheduleColorScaleUpdate);
-$("vmax").addEventListener("input", scheduleColorScaleUpdate);
+$("formula").addEventListener("input", scheduleVisualUpdate);
+$("vmin").addEventListener("input", scheduleVisualUpdate);
+$("vmax").addEventListener("input", scheduleVisualUpdate);
 
 $("analyze").onclick = async () => {
     if (!scaleInputsValid()) return;
+    if (!$("formula").value.trim()) {
+        setStatus("Введіть формулу відображення", "error");
+        return;
+    }
 
     setBusy(true);
     analysisReady = false;
@@ -137,6 +178,7 @@ $("analyze").onclick = async () => {
             start_sec: $("start-sec").value,
             duration_sec: $("duration-sec").value,
             y_max: $("y-max").value,
+            formula: $("formula").value.trim(),
             vmin: $("vmin").value.trim(),
             vmax: $("vmax").value.trim(),
             nperseg: $("nperseg").value,
@@ -145,14 +187,15 @@ $("analyze").onclick = async () => {
         showImage(result.image);
         updateScalePlaceholders(result.vmin, result.vmax);
         analysisReady = true;
+        setAnalysisDetailsBase(result);
+        renderVisualDetails(result);
 
-        const info = $("details");
-        info.hidden = false;
-        info.textContent = `X: ${result.x_label}; Y: ${result.y_label}; fs: ${result.actual_fs.toPrecision(8)} Hz; точок: ${result.points}; сегментів: ${result.windows}; частотних ліній: ${result.frequency_bins}; діапазон: ${result.actual_start.toFixed(6)}–${result.actual_end.toFixed(6)} с; шкала: ${Number(result.vmin).toFixed(2)}…${Number(result.vmax).toFixed(2)} дБ/Гц.`;
+        const unit = unitSuffix(result.value_unit);
         const notes = [];
         if (result.clipped) notes.push("Діапазон скорочено до доступних даних");
         if (result.warning) notes.push(result.warning);
         if (result.external_opened) notes.push("Відкрито інтерактивне вікно");
+        notes.push(`Шкала ${compactNumber(result.vmin)}…${compactNumber(result.vmax)}${unit}`);
         setStatus(
             `Спектрограму побудовано${notes.length ? `. ${notes.join(". ")}.` : "."}`,
             "success",
