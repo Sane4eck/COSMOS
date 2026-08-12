@@ -30,6 +30,7 @@ class SpectrogramViewer:
         t_spec,
         y_max: float,
         signal_name: str,
+        file_name: str,
         vmin: float | None = None,
         vmax: float | None = None,
         colorbar_label: str = "Amplitude Peak (g)",
@@ -43,6 +44,7 @@ class SpectrogramViewer:
         self.t_spec = np.asarray(t_spec)
         self.y_max = float(y_max)
         self.signal_name = signal_name
+        self.file_name = file_name
         self.rpm_axis = self.f_spec * 60 / 1000
         self.vmin = vmin
         self.vmax = vmax
@@ -147,8 +149,8 @@ class SpectrogramViewer:
             cmap=self.cmap,
         )
         figure.colorbar(mesh, ax=axis, label=self.colorbar_label)
-        axis.set_title(f"Спектрограма: {self.signal_name} — {self.colorbar_label}")
-        axis.set_xlabel("Час, с")
+        axis.set_title(f"Spectrogram: {self.file_name} - {self.colorbar_label}")
+        axis.set_xlabel("Time, s")
         axis.set_ylabel("RPM")
         axis.set_ylim(0, self.y_max)
         axis.grid(True, linestyle=":", linewidth=0.5)
@@ -191,7 +193,7 @@ class SpectrogramViewer:
         )
 
         root = tk.Tk()
-        root.title(f"Spectrogramma — {self.signal_name}")
+        root.title(f"Spectrogram — {self.signal_name}")
         root.geometry("1200x760")
 
         figure, axis, _, _ = self._create_figure()
