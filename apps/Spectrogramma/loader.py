@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from apps.Spectrogramma.excel_source import (
+from apps.Spectrogram.excel_source import (
     axis_info_excel,
     inspect_excel,
     load_excel,
 )
-from apps.Spectrogramma.tdms_source import (
+from apps.Spectrogram.tdms_source import (
     axis_info_tdms,
     inspect_tdms,
     load_tdms,
