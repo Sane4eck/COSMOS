@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from apps.Spectrogramma.source_common import (
+from apps.Spectrogram.source_common import (
     GENERATED_TIME,
     LoadedSignal,
     align_xy,
