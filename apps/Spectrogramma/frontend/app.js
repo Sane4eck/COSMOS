@@ -74,6 +74,7 @@ function visualPayload() {
         color_scale: $("color-scale").value,
         gamma: $("gamma").value,
         cmap: $("cmap").value,
+        shading: $("shading").value,
     };
 }
 
@@ -123,7 +124,7 @@ function renderVisualDetails(result) {
     const unit = unitSuffix(result.value_unit);
     const formulaText = result.formula ? `; формула: ${result.formula}` : "";
     const gammaText = result.color_scale === "power" ? `, gamma=${compactNumber(result.gamma)}` : "";
-    info.textContent = `${analysisDetailsBase}; Spectrum: ${result.spectrum_label}; Amplitude Peak max: ${compactNumber(result.amplitude_peak_max)} g; SXX: ${compactNumber(result.sxx_min)}…${compactNumber(result.sxx_max)} g²/Hz; результат: ${compactNumber(result.result_min)}…${compactNumber(result.result_max)}${unit}; шкала: ${compactNumber(result.vmin)}…${compactNumber(result.vmax)}${unit}; colors: ${result.color_scale}${gammaText}, cmap=${result.cmap}${formulaText}.`;
+    info.textContent = `${analysisDetailsBase}; Spectrum: ${result.spectrum_label}; Amplitude Peak max: ${compactNumber(result.amplitude_peak_max)} g; SXX: ${compactNumber(result.sxx_min)}…${compactNumber(result.sxx_max)} g²/Hz; результат: ${compactNumber(result.result_min)}…${compactNumber(result.result_max)}${unit}; шкала: ${compactNumber(result.vmin)}…${compactNumber(result.vmax)}${unit}; colors: ${result.color_scale}${gammaText}, cmap=${result.cmap}, shading=${result.shading}${formulaText}.`;
 }
 
 async function updateVisualization() {
@@ -138,7 +139,7 @@ async function updateVisualization() {
         renderVisualDetails(result);
         const unit = unitSuffix(result.value_unit);
         setStatus(
-            `${result.spectrum_label}: шкала ${compactNumber(result.vmin)}…${compactNumber(result.vmax)}${unit}; ${result.color_scale}, ${result.cmap}`,
+            `${result.spectrum_label}: шкала ${compactNumber(result.vmin)}…${compactNumber(result.vmax)}${unit}; ${result.color_scale}, ${result.cmap}, shading=${result.shading}`,
             "success",
         );
     } catch (error) {
@@ -177,6 +178,7 @@ async function refreshAxisInfo() {
 
 $("choose-file").onclick = async () => {
     setBusy(true);
+    $("save-graph").disabled = true;
     try {
         const selected = await apiCall("Spectrogram.choose_source");
         if (!selected.path) return;
@@ -199,6 +201,7 @@ $("choose-file").onclick = async () => {
         setStatus(error.message, "error");
     } finally {
         setBusy(false);
+        $("save-graph").disabled = !analysisReady;
     }
 };
 
@@ -215,6 +218,7 @@ $("color-scale").addEventListener("change", () => {
 });
 $("gamma").addEventListener("input", scheduleVisualUpdate);
 $("cmap").addEventListener("change", scheduleVisualUpdate);
+$("shading").addEventListener("change", scheduleVisualUpdate);
 $("formula").addEventListener("input", scheduleVisualUpdate);
 $("vmin").addEventListener("input", scheduleVisualUpdate);
 $("vmax").addEventListener("input", scheduleVisualUpdate);
@@ -224,6 +228,7 @@ $("analyze").onclick = async () => {
 
     setBusy(true);
     analysisReady = false;
+    $("save-graph").disabled = true;
     setStatus("Формування спектрограми…", "working");
     try {
         const result = await apiCall("Spectrogram.analyze", {
@@ -242,6 +247,7 @@ $("analyze").onclick = async () => {
         updateScalePlaceholders(result.vmin, result.vmax);
         updateUnitLabels(result.value_unit);
         analysisReady = true;
+        $("save-graph").disabled = false;
         setAnalysisDetailsBase(result);
         renderVisualDetails(result);
 
@@ -251,7 +257,7 @@ $("analyze").onclick = async () => {
         if (result.warning) notes.push(result.warning);
         if (result.external_opened) notes.push("Відкрито інтерактивне вікно");
         notes.push(`Шкала ${compactNumber(result.vmin)}…${compactNumber(result.vmax)}${unit}`);
-        notes.push(`${result.color_scale}, ${result.cmap}`);
+        notes.push(`${result.color_scale}, ${result.cmap}, shading=${result.shading}`);
         setStatus(
             `${result.spectrum_label} побудовано${notes.length ? `. ${notes.join(". ")}.` : "."}`,
             "success",
@@ -260,6 +266,30 @@ $("analyze").onclick = async () => {
         setStatus(error.message, "error");
     } finally {
         setBusy(false);
+        $("save-graph").disabled = !analysisReady;
+    }
+};
+
+$("save-graph").onclick = async () => {
+    if (!analysisReady || !visualInputsValid()) return;
+
+    $("save-graph").disabled = true;
+    try {
+        setStatus("Збереження графіка…", "working");
+        const result = await apiCall("Spectrogram.save_graph", visualPayload());
+        if (!result.saved) {
+            setStatus("Збереження скасовано", "");
+            return;
+        }
+        const quality = result.dpi ? `, ${result.dpi} dpi` : ", vector";
+        setStatus(
+            `Графік збережено: ${result.path} (${result.format}${quality}, shading=${result.shading})`,
+            "success",
+        );
+    } catch (error) {
+        setStatus(error.message, "error");
+    } finally {
+        $("save-graph").disabled = !analysisReady;
     }
 };
 
