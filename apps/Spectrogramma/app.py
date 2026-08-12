@@ -4,14 +4,14 @@ from pathlib import Path
 import numpy as np
 import webview
 
-from apps.Spectrogramma.formula import (
+from apps.Spectrogram.formula import (
     DEFAULT_FORMULA,
     apply_spectrum_formula,
     spectrum_value_metadata,
 )
-from apps.Spectrogramma.loader import DataLoader
-from apps.Spectrogramma.processor import SpectrogramProcessor
-from apps.Spectrogramma.viewer import SpectrogramViewer
+from apps.Spectrogram.loader import DataLoader
+from apps.Spectrogram.processor import SpectrogramProcessor
+from apps.Spectrogram.viewer import SpectrogramViewer
 from core.models import AppDefinition
 from core.paths import resource_path
 
@@ -41,6 +41,7 @@ class _CachedSpectrogram:
     t_spec: np.ndarray
     y_max: float
     signal_name: str
+    file_name: str
 
 
 _last_spectrogram: _CachedSpectrogram | None = None
@@ -174,6 +175,7 @@ def _render_cached(payload):
         _last_spectrogram.t_spec,
         _last_spectrogram.y_max,
         _last_spectrogram.signal_name,
+        _last_spectrogram.file_name,
         _optional_float(payload.get("vmin")),
         _optional_float(payload.get("vmax")),
         colorbar_label=spectrum_label,
@@ -283,6 +285,7 @@ def run_analysis(payload):
         t_spec=t_spec,
         y_max=float(payload["y_max"]),
         signal_name=loaded.y_label,
+        file_name=Path(path).name,
     )
     _last_values_key = None
     _last_values = None
@@ -313,15 +316,15 @@ def run_analysis(payload):
 
 
 APP = AppDefinition(
-    app_id="Spectrogramma",
-    title="Spectrogramma",
-    frontend_dir=resource_path("apps", "Spectrogramma", "frontend"),
+    app_id="Spectrogram",
+    title="Spectrogram",
+    frontend_dir=resource_path("apps", "Spectrogram", "frontend"),
     commands={
-        "Spectrogramma.choose_source": choose_source,
-        "Spectrogramma.inspect_source": inspect_source,
-        "Spectrogramma.axis_info": axis_info,
-        "Spectrogramma.update_visual": update_visual,
-        "Spectrogramma.update_scale": update_scale,
-        "Spectrogramma.analyze": run_analysis,
+        "Spectrogram.choose_source": choose_source,
+        "Spectrogram.inspect_source": inspect_source,
+        "Spectrogram.axis_info": axis_info,
+        "Spectrogram.update_visual": update_visual,
+        "Spectrogram.update_scale": update_scale,
+        "Spectrogram.analyze": run_analysis,
     },
 )
