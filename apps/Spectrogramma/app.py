@@ -31,6 +31,7 @@ _VALID_SPECTRUM_TYPES = {
     SPECTRUM_PSD_DB,
     SPECTRUM_CUSTOM,
 }
+_VALID_SAVE_SUFFIXES = {".png", ".svg", ".pdf"}
 
 
 @dataclass
@@ -42,6 +43,7 @@ class _CachedSpectrogram:
     y_max: float
     signal_name: str
     file_name: str
+    source_path: str
 
 
 _last_spectrogram: _CachedSpectrogram | None = None
@@ -100,14 +102,12 @@ def _spectrum_values(payload):
 
     if _last_values is None or _last_values_key != cache_key:
         if spectrum_type == SPECTRUM_AMPLITUDE_PEAK:
-            # Без копії: це вже фізична амплітуда кожного FFT-bin у g peak.
             values = _last_spectrogram.amplitude_peak
         elif spectrum_type == SPECTRUM_AMPLITUDE_RMS:
             values = (
                 _last_spectrogram.amplitude_peak / np.float32(np.sqrt(2.0))
             ).astype(np.float32, copy=False)
         elif spectrum_type == SPECTRUM_PSD:
-            # Зберігаємо існуючий SXX без зміни його формули.
             values = _last_spectrogram.sxx
         elif spectrum_type == SPECTRUM_ASD:
             values = np.sqrt(_last_spectrogram.sxx).astype(np.float32, copy=False)
@@ -168,6 +168,7 @@ def _render_cached(payload):
     color_scale = str(payload.get("color_scale", "linear")).strip().lower() or "linear"
     cmap = str(payload.get("cmap", "turbo")).strip() or "turbo"
     gamma = _float_or_default(payload.get("gamma"), 0.5)
+    shading = str(payload.get("shading", "nearest")).strip().lower() or "nearest"
 
     viewer = SpectrogramViewer(
         values,
@@ -183,6 +184,7 @@ def _render_cached(payload):
         color_scale=color_scale,
         gamma=gamma,
         cmap=cmap,
+        shading=shading,
     )
     image, actual_vmin, actual_vmax = viewer.render()
 
@@ -198,6 +200,7 @@ def _render_cached(payload):
         "color_scale": color_scale,
         "gamma": gamma,
         "cmap": cmap,
+        "shading": shading,
         "sxx_min": float(np.min(_last_spectrogram.sxx)),
         "sxx_max": float(np.max(_last_spectrogram.sxx)),
         "amplitude_peak_min": float(np.min(_last_spectrogram.amplitude_peak)),
@@ -251,8 +254,45 @@ def update_visual(payload):
 
 
 def update_scale(payload):
-    # Зворотна сумісність зі старим UI.
     return update_visual(payload)
+
+
+def save_graph(payload):
+    if _last_spectrogram is None:
+        raise ValueError("Спочатку побудуйте спектрограму")
+
+    rendered = _render_cached(payload)
+    viewer = rendered.pop("viewer")
+
+    source = Path(_last_spectrogram.source_path)
+    default_name = f"{source.stem}_spectrogram.png"
+    selected = _window().create_file_dialog(
+        webview.FileDialog.SAVE,
+        directory=str(source.parent),
+        save_filename=default_name,
+        file_types=(
+            "PNG (*.png)",
+            "SVG (*.svg)",
+            "PDF (*.pdf)",
+        ),
+    )
+    if not selected:
+        return {"saved": False}
+
+    save_path = Path(selected[0])
+    suffix = save_path.suffix.lower()
+    if suffix not in _VALID_SAVE_SUFFIXES:
+        save_path = save_path.with_suffix(".png")
+        suffix = ".png"
+
+    viewer.save(str(save_path), dpi=600)
+    return {
+        "saved": True,
+        "path": str(save_path),
+        "format": suffix.lstrip(".").upper(),
+        "dpi": 600 if suffix == ".png" else None,
+        "shading": rendered["shading"],
+    }
 
 
 def run_analysis(payload):
@@ -286,6 +326,7 @@ def run_analysis(payload):
         y_max=float(payload["y_max"]),
         signal_name=loaded.y_label,
         file_name=Path(path).name,
+        source_path=path,
     )
     _last_values_key = None
     _last_values = None
@@ -325,6 +366,7 @@ APP = AppDefinition(
         "Spectrogram.axis_info": axis_info,
         "Spectrogram.update_visual": update_visual,
         "Spectrogram.update_scale": update_scale,
+        "Spectrogram.save_graph": save_graph,
         "Spectrogram.analyze": run_analysis,
     },
 )
