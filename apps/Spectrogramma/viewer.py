@@ -20,6 +20,7 @@ _ALLOWED_CMAPS = {
     "nipy_spectral",
     "jet",
 }
+_ALLOWED_SHADING = {"nearest", "auto", "flat", "gouraud"}
 
 
 class SpectrogramViewer:
@@ -38,6 +39,7 @@ class SpectrogramViewer:
         color_scale: str = "linear",
         gamma: float = 0.5,
         cmap: str = "turbo",
+        shading: str = "nearest",
     ):
         self.values = np.asarray(values)
         self.f_spec = np.asarray(f_spec)
@@ -53,11 +55,14 @@ class SpectrogramViewer:
         self.color_scale = str(color_scale).strip().lower()
         self.gamma = float(gamma)
         self.cmap = str(cmap).strip()
+        self.shading = str(shading).strip().lower() or "nearest"
 
         if self.color_scale not in _ALLOWED_COLOR_SCALES:
             raise ValueError(f"Невідомий тип кольорової шкали: {self.color_scale}")
         if self.cmap not in _ALLOWED_CMAPS:
             raise ValueError(f"Невідома палітра: {self.cmap}")
+        if self.shading not in _ALLOWED_SHADING:
+            raise ValueError(f"Невідомий shading: {self.shading}")
         if not np.isfinite(self.gamma) or self.gamma <= 0:
             raise ValueError("Gamma повинна бути скінченним числом > 0")
 
@@ -123,6 +128,24 @@ class SpectrogramViewer:
 
         return norm, vmin, vmax
 
+    @staticmethod
+    def _cell_edges(centers: np.ndarray) -> np.ndarray:
+        centers = np.asarray(centers, dtype=float)
+        if centers.ndim != 1 or not len(centers):
+            raise ValueError("Координати спектрограми повинні бути одновимірними")
+        if len(centers) == 1:
+            return np.array([centers[0] - 0.5, centers[0] + 0.5], dtype=float)
+
+        midpoints = (centers[:-1] + centers[1:]) / 2.0
+        first = centers[0] - (midpoints[0] - centers[0])
+        last = centers[-1] + (centers[-1] - midpoints[-1])
+        return np.concatenate(([first], midpoints, [last]))
+
+    def _mesh_coordinates(self):
+        if self.shading == "flat":
+            return self._cell_edges(self.t_spec), self._cell_edges(self.rpm_axis)
+        return self.t_spec, self.rpm_axis
+
     def set_color_limits(
         self,
         vmin: float | None,
@@ -138,13 +161,14 @@ class SpectrogramViewer:
 
     def _create_figure(self):
         norm, vmin, vmax = self._create_norm()
+        x_values, y_values = self._mesh_coordinates()
         figure = Figure(figsize=(16, 9))
         axis = figure.add_subplot(111)
         mesh = axis.pcolormesh(
-            self.t_spec,
-            self.rpm_axis,
+            x_values,
+            y_values,
             self.values,
-            shading="nearest",
+            shading=self.shading,
             norm=norm,
             cmap=self.cmap,
         )
@@ -173,6 +197,17 @@ class SpectrogramViewer:
         figure.savefig(buffer, format="png", dpi=140)
         encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
         return f"data:image/png;base64,{encoded}", vmin, vmax
+
+    def save(self, path: str, dpi: int = 600) -> None:
+        figure, _, _, _ = self._create_figure()
+        suffix = str(path).lower().rsplit(".", 1)[-1] if "." in str(path) else "png"
+        save_kwargs = {
+            "bbox_inches": "tight",
+            "facecolor": "white",
+        }
+        if suffix == "png":
+            save_kwargs["dpi"] = int(dpi)
+        figure.savefig(path, **save_kwargs)
 
     def show_interactive(self) -> None:
         try:
