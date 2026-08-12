@@ -131,7 +131,7 @@ async function updateVisualization() {
 
     try {
         setStatus("Оновлення спектра та кольорової шкали…", "working");
-        const result = await apiCall("Spectrogramma.update_visual", visualPayload());
+        const result = await apiCall("Spectrogram.update_visual", visualPayload());
         showImage(result.image);
         updateScalePlaceholders(result.vmin, result.vmax);
         updateUnitLabels(result.value_unit);
@@ -155,7 +155,7 @@ function scheduleVisualUpdate() {
 async function refreshAxisInfo() {
     if (!selectedPath || !$("x-axis").value || !$("y-axis").value) return;
     try {
-        const result = await apiCall("Spectrogramma.axis_info", {
+        const result = await apiCall("Spectrogram.axis_info", {
             path: selectedPath,
             x_axis: $("x-axis").value,
             y_axis: $("y-axis").value,
@@ -167,7 +167,7 @@ async function refreshAxisInfo() {
         $("start-sec").value = Number(result.x_min).toPrecision(10);
         const available = Math.max(0, Number(result.x_max) - Number(result.x_min));
         if (available > 0) {
-            $("duration-sec").value = Math.min(300, available).toPrecision(10);
+            $("duration-sec").value = Math.min(500, available).toPrecision(10);
         }
         if (result.warning) setStatus(result.warning, "working");
     } catch (error) {
@@ -178,7 +178,7 @@ async function refreshAxisInfo() {
 $("choose-file").onclick = async () => {
     setBusy(true);
     try {
-        const selected = await apiCall("Spectrogramma.choose_source");
+        const selected = await apiCall("Spectrogram.choose_source");
         if (!selected.path) return;
         selectedPath = selected.path;
         analysisReady = false;
@@ -187,7 +187,7 @@ $("choose-file").onclick = async () => {
         $("vmax").placeholder = "Auto";
         $("file-path").textContent = selected.path;
         setStatus("Читання структури файлу…", "working");
-        const source = await apiCall("Spectrogramma.inspect_source", {
+        const source = await apiCall("Spectrogram.inspect_source", {
             path: selectedPath,
         });
         fillSelect($("x-axis"), source.x_axes, source.default_x);
@@ -226,7 +226,7 @@ $("analyze").onclick = async () => {
     analysisReady = false;
     setStatus("Формування спектрограми…", "working");
     try {
-        const result = await apiCall("Spectrogramma.analyze", {
+        const result = await apiCall("Spectrogram.analyze", {
             path: selectedPath,
             x_axis: $("x-axis").value,
             y_axis: $("y-axis").value,
