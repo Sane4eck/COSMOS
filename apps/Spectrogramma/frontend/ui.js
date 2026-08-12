@@ -7,10 +7,10 @@ document.getElementById("app").innerHTML = `
 <label>Вісь Y<select id="y-axis" disabled></select></label>
 </div>
 <div class="fields">
-<label>Частота запису, Hz<input id="fs" type="number" min="0.000001" step="any" value="2500"></label>
+<label>Частота запису, Hz<input id="fs" type="number" min="0.000001" step="any" value="40000"></label>
 <label>Початок, с<input id="start-sec" type="number" step="any" value="0"></label>
-<label>Тривалість, с<input id="duration-sec" type="number" min="0.000001" step="any" value="300"></label>
-<label>Y max, тис. RPM<input id="y-max" type="number" min="0.001" step="any" value="30"></label>
+<label>Тривалість, с<input id="duration-sec" type="number" min="0.000001" step="any" value="500"></label>
+<label>Y max, тис. RPM<input id="y-max" type="number" min="0.001" step="any" value="80"></label>
 
 <label>Тип спектра<select id="spectrum-type">
 <option value="amplitude_peak" selected>Amplitude Peak [g]</option>
@@ -38,7 +38,7 @@ document.getElementById("app").innerHTML = `
 <label><span id="vmin-label">vmin [g]</span><input id="vmin" type="number" step="any" value="0" placeholder="Auto"></label>
 <label><span id="vmax-label">vmax [g]</span><input id="vmax" type="number" step="any" value="30" placeholder="Auto"></label>
 <label class="wide" id="custom-formula-field" hidden>Формула відображення SXX<input id="formula" type="text" spellcheck="false" list="formula-presets" value="10 * log10(sxx + 1e-9)"></label>
-<label class="wide">Кількість точок у сегменті<input id="nperseg" type="number" min="2" max="1000000" value="1000"></label>
+<label class="wide">Кількість точок у сегменті<input id="nperseg" type="number" min="2" max="1000000" value="40000"></label>
 </div>
 <datalist id="formula-presets">
 <option value="10 * log10(sxx + 1e-9)"></option>
