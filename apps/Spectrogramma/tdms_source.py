@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from apps.Spectrogramma.source_common import (
+from apps.Spectrogram.source_common import (
     GENERATED_TIME,
     TDMS_WAVEFORM_TIME,
     LoadedSignal,
