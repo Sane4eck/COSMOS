@@ -35,6 +35,12 @@ document.getElementById("app").innerHTML = `
 <option value="nipy_spectral">nipy_spectral</option>
 <option value="jet">jet</option>
 </select></label>
+<label>Shading<select id="shading">
+<option value="nearest" selected>nearest</option>
+<option value="auto">auto</option>
+<option value="flat">flat</option>
+<option value="gouraud">gouraud</option>
+</select></label>
 <label><span id="vmin-label">vmin [g]</span><input id="vmin" type="number" step="any" value="0" placeholder="Auto"></label>
 <label><span id="vmax-label">vmax [g]</span><input id="vmax" type="number" step="any" value="30" placeholder="Auto"></label>
 <label class="wide" id="custom-formula-field" hidden>Формула відображення SXX<input id="formula" type="text" spellcheck="false" list="formula-presets" value="10 * log10(sxx + 1e-9)"></label>
@@ -49,10 +55,15 @@ document.getElementById("app").innerHTML = `
 </datalist>
 <p class="hint">Amplitude Peak — одностороння амплітуда FFT-bin з компенсацією Hann window. Якщо вхідний сигнал у g, шкала також у g peak. Amplitude RMS = Peak / √2.</p>
 <p class="hint">vmin/vmax, Color scale, Gamma та Colormap змінюють тільки відображення кольорів і не змінюють фізичні значення спектра. Power/Log залишають colorbar у реальних одиницях вибраного режиму.</p>
+<p class="hint">Shading: nearest — рекомендований для кількісного аналізу FFT-bin; gouraud — згладжене відображення; flat та auto доступні як альтернативи.</p>
 <p class="hint" id="custom-formula-hint" hidden>Custom Formula застосовується до існуючого SXX без повторного FFT. Доступні: log10, log/ln, sqrt, abs, clip, exp, minimum, maximum, power та відповідні np.* функції.</p>
 <label class="check"><input id="open-external" type="checkbox" checked> Також відкрити інтерактивний графік в окремому вікні</label>
 <p class="hint">В окремому вікні доступні zoom, pan і збереження. Клацніть по спектрограмі, щоб отримати час, RPM та фізичне значення FFT-bin.</p>
+<div class="action-row">
 <button id="analyze" class="primary" disabled>Запустити аналіз</button>
+<button id="save-graph" disabled>Зберегти графік</button>
+</div>
+<p class="hint">Збереження: PNG — 600 dpi; SVG/PDF — векторні формати. Ім’я автоматично формується з назви вихідного файла.</p>
 <div id="status" class="status">Очікування файлу</div>
 <div id="details" class="details" hidden></div>
 </section>
